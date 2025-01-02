@@ -1,100 +1,47 @@
 QBCore = exports['qb-core']:GetCoreObject()
 
-local jobs = {}
+local customJobs = {}
 
-AddEventHandler('onResourceStart', function(resourceName)
-    if resourceName == GetCurrentResourceName() then
-        LoadJobs()
-    end
-end)
-
-RegisterNetEvent('jobcreator:getJobs', function()
-    local src = source
-    TriggerClientEvent('jobcreator:receiveJobs', src, jobs)
-end)
-
-RegisterNetEvent('jobcreator:createJob', function(data)
-    local src = source
-
-    if not data.id or not data.label then
-        TriggerClientEvent('QBCore:Notify', src, 'Invalid job data.', 'error')
-        return
-    end
-
-    -- Add job to the selected system
-    if Config.JobSystem == "ps-multijob" then
-        exports['ps-multijob']:AddJob(data.id, data.label)
-    elseif Config.JobSystem == "qb-jobs" then
-        QBCore.Shared.Jobs[data.id] = { label = data.label, grades = {} }
-    end
-
-    -- Add to jobs table
-    jobs[data.id] = {
-        label = data.label,
-        grades = {
-            [1] = { salary = 0 },
-            [2] = { salary = 0 },
-            [3] = { salary = 0 },
-            [4] = { salary = 0 }
-        }
-    }
-
-    SaveJobs()
-    TriggerClientEvent('QBCore:Notify', src, 'Job created successfully.', 'success')
-end)
-
-RegisterNetEvent('jobcreator:setGradeSalary', function(data)
-    local src = source
-
-    if not data.id or not data.grade or not data.salary then
-        TriggerClientEvent('QBCore:Notify', src, 'Invalid grade data.', 'error')
-        return
-    end
-
-    if jobs[data.id] and jobs[data.id].grades[data.grade] then
-        jobs[data.id].grades[data.grade].salary = data.salary
-
-        -- Add billing functionality based on selected system
-        if Config.BillingSystem == "okokBilling" then
-            exports['okokBilling']:CreateBill(src, jobs[data.id].label, 'Salary Adjustment (Grade ' .. data.grade .. ')', data.salary)
-        elseif Config.BillingSystem == "qb-banking" then
-            local Player = QBCore.Functions.GetPlayer(src)
-            Player.Functions.RemoveMoney("bank", data.salary, "Salary Adjustment")
-        end
-
-        SaveJobs()
-        TriggerClientEvent('QBCore:Notify', src, 'Salary updated successfully.', 'success')
-    else
-        TriggerClientEvent('QBCore:Notify', src, 'Job or grade not found.', 'error')
-    end
-end)
-
-function SaveJobs()
-    SaveResourceFile(GetCurrentResourceName(), 'jobs.json', json.encode(jobs, { indent = true }), -1)
-end
-
-function LoadJobs()
+-- Load custom jobs from JSON
+function loadCustomJobs()
     local file = LoadResourceFile(GetCurrentResourceName(), 'jobs.json')
     if file then
-        jobs = json.decode(file) or {}
-        print("[JobCreator] Jobs loaded successfully!")
+        customJobs = json.decode(file) or {}
     else
-        jobs = {}
-        print("[JobCreator] No jobs found, starting fresh.")
+        customJobs = {}
     end
 end
 
--- ██████╗ ██╗███╗   ██╗ ██████╗  ██████╗ ███████╗
--- ██╔══██╗██║████╗  ██║██╔════╝ ██╔═══██╗██╔════╝
--- ██║  ██║██║██╔██╗ ██║██║  ███╗██║   ██║███████╗
--- ██║  ██║██║██║╚██╗██║██║   ██║██║   ██║╚════██║
--- ██████╔╝██║██║ ╚████║╚██████╔╝╚██████╔╝███████║
--- ╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚══════╝
+-- Save custom jobs to JSON
+function saveCustomJobs()
+    SaveResourceFile(GetCurrentResourceName(), 'jobs.json', json.encode(customJobs, { indent = true }), -1)
+end
 
--- ██████╗ ███████╗██╗   ██╗███████╗██████╗ ███╗   ███╗███████╗███╗   ██╗████████╗
--- ██╔══██╗██╔════╝██║   ██║██╔════╝██╔══██╗████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
--- ██║  ██║█████╗  ██║   ██║█████╗  ██████╔╝██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
--- ██║  ██║██╔══╝  ╚██╗ ██╔╝██╔══╝  ██╔═══╝ ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
--- ██████╔╝███████╗ ╚████╔╝ ███████╗██║     ██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
--- ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝     ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
--- https://discord.gg/gxcZgsghzn
+-- Fetch all jobs (qb-jobs + custom jobs)
+RegisterNetEvent('jobcreator:getAllJobs', function()
+    local src = source
+    local allJobs = QBCore.Shared.Jobs
+
+    for jobId, jobData in pairs(customJobs) do
+        allJobs[jobId] = jobData
+    end
+
+    TriggerClientEvent('jobcreator:showAllJobs', src, allJobs)
+end)
+
+-- Create a new job
+RegisterNetEvent('jobcreator:createJob', function(data)
+    if not data.name or not data.id or not data.grades then
+        return -- Stop execution if data is invalid
+    end
+
+    customJobs[data.id] = { label = data.name, grades = data.grades }
+    saveCustomJobs()
+end)
+
+-- Load jobs on resource start
+AddEventHandler('onResourceStart', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        loadCustomJobs()
+    end
+end)
