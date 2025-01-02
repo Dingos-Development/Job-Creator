@@ -1,0 +1,12 @@
+Add this to your SQL
+
+   ```sql
+   CREATE TABLE IF NOT EXISTS `jobs` (
+       `id` VARCHAR(50) NOT NULL PRIMARY KEY,
+       `label` VARCHAR(100) NOT NULL,
+       `grade1_salary` INT NOT NULL DEFAULT 0,
+       `grade2_salary` INT NOT NULL DEFAULT 0,
+       `grade3_salary` INT NOT NULL DEFAULT 0,
+       `grade4_salary` INT NOT NULL DEFAULT 0
+   );
+   ```
