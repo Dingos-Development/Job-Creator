@@ -2,14 +2,14 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'Dingo'
-description 'Job Creator with Configurable Systems'
-version '1.2.0'
+description 'Job Creator using ox_lib'
+version '2.0.0'
 
 lua54 'yes'
 
 shared_scripts {
-    'config.lua',          -- Include configuration file
-    '@ox_lib/init.lua'
+    '@ox_lib/init.lua',
+    'config.lua'
 }
 
 client_scripts {
@@ -18,6 +18,11 @@ client_scripts {
 
 server_scripts {
     'server/sv_jobcreator.lua'
+}
+
+dependencies {
+    'ox_lib',
+    'qb-core'
 }
 
 
