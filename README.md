@@ -34,7 +34,12 @@ Bring powerful job creation and management to your FiveM server with the **Dingo
 
 ### **3. Configure the Script**
 1. Open the `config.lua` file inside the `Dingosdevelopment_JobCreator` folder.
-2. Enable debug mode if needed:
+2. Configure your preferred billing and job systems:
+   ```lua
+   Config.BillingSystem = "okokBilling" -- Options: "okokBilling", "qb-banking"
+   Config.JobSystem = "ps-multijob"     -- Options: "ps-multijob", "qb-jobs"
+   ```
+3. (Optional) Enable debug mode for troubleshooting:
    ```lua
    Config.Debug = true -- Set to true for detailed logs
    ```
@@ -64,4 +69,6 @@ Join our **Support Discord** for assistance:
 **Author**: Dingo's Development  
 ✨ *Empowering Your FiveM Server!* ✨  
 
-Let me know if you need further tweaks or changes! 🚀
+Let me know if this works for your needs! 🚀
+
+
