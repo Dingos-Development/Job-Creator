@@ -1,137 +1,147 @@
-local jobMenu = nil
+local jobData = {}
 
--- Create the Job Creator Menu
-function createJobMenu()
-    jobMenu = NativeUI.CreateMenu("Job Creator", "Add new jobs to your server")
-    _menuPool:Add(jobMenu)
-
-    -- Add option to create a new job
-    local createNewJob = NativeUI.CreateItem("Create New Job", "Add a new job to your server")
-    createNewJob.Activated = function(sender, item)
-        if item == createNewJob then
-            openCreateJobDialog()
-        end
-    end
-    jobMenu:AddItem(createNewJob)
-
-    -- Add existing jobs to the menu
-    TriggerServerEvent('jobcreator:getJobs')
-end
-
--- Function to open the job creation dialog
-function openCreateJobDialog()
-    local dialog = exports['qb-input']:ShowInput({
-        header = "Create a New Job",
-        submitText = "Create",
-        inputs = {
-            { type = "text", name = "label", text = "Job Name (Required)" },
-            { type = "text", name = "id", text = "Job ID (Required)" }
+-- Function to open the main menu
+function openMainMenu()
+    local options = {
+        {
+            label = '💼 Add New Job',
+            description = 'Create a new job for your server',
+            event = 'jobcreator:addNewJob'
+        },
+        {
+            label = '📜 View All Jobs',
+            description = 'See all existing jobs',
+            event = 'jobcreator:viewJobs'
         }
+    }
+
+    lib.registerContext({
+        id = 'main_menu',
+        title = '🔵 Job Creator',
+        description = 'Manage server jobs',
+        options = options
     })
 
-    if dialog then
-        if not dialog.label or dialog.label:match("^%s*$") or not dialog.id or dialog.id:match("^%s*$") then
-            TriggerEvent('QBCore:Notify', "All fields are required.", "error")
-            return
-        end
-        TriggerServerEvent('jobcreator:createJob', dialog)
-    end
+    lib.showContext('main_menu')
 end
 
--- Function to display jobs in the menu
-RegisterNetEvent('jobcreator:receiveJobs', function(jobs)
-    for jobId, job in pairs(jobs) do
-        local jobItem = NativeUI.CreateItem(job.label .. " (" .. jobId .. ")", "Edit job details")
-        jobItem.Activated = function(sender, item)
-            if item == jobItem then
-                openEditJobMenu(jobId, job)
-            end
-        end
-        jobMenu:AddItem(jobItem)
-    end
-    jobMenu:Visible(true)
+-- Function to handle adding a new job
+RegisterNetEvent('jobcreator:addNewJob', function()
+    local input = lib.inputDialog('Add New Job', {
+        { type = 'input', label = 'Job Name', placeholder = 'Enter job name', required = true },
+        { type = 'input', label = 'Job ID', placeholder = 'Enter job ID', required = true }
+    })
+
+    if not input then return end -- Cancelled
+
+    jobData = { name = input[1], id = input[2], grades = {} }
+    openEditPayMenu()
 end)
 
--- Function to open the edit job menu
-function openEditJobMenu(jobId, job)
-    local editMenu = NativeUI.CreateMenu("Edit Job: " .. job.label, "Edit job grades and salaries")
-    _menuPool:Add(editMenu)
-
-    for grade, info in pairs(job.grades) do
-        local gradeItem = NativeUI.CreateItem("Grade " .. grade .. ": $" .. info.salary, "Click to edit salary")
-        gradeItem.Activated = function(sender, item)
-            if item == gradeItem then
-                openEditGradeDialog(jobId, grade, info.salary)
-            end
-        end
-        editMenu:AddItem(gradeItem)
-    end
-
-    local backItem = NativeUI.CreateItem("Back", "Go back to the main menu")
-    backItem.Activated = function(sender, item)
-        if item == backItem then
-            editMenu:Visible(false)
-            jobMenu:Visible(true)
-        end
-    end
-    editMenu:AddItem(backItem)
-    editMenu:Visible(true)
-end
-
--- Function to open the grade editing dialog
-function openEditGradeDialog(jobId, grade, currentSalary)
-    local dialog = exports['qb-input']:ShowInput({
-        header = "Edit Grade " .. grade .. " Salary",
-        submitText = "Save",
-        inputs = {
-            { type = "number", name = "salary", text = "New Salary", default = tostring(currentSalary) }
+-- Function to open the edit pay menu
+function openEditPayMenu()
+    local options = {
+        {
+            label = '💰 Edit Pay for Grades',
+            description = 'Set salaries for each grade',
+            event = 'jobcreator:editPay'
+        },
+        {
+            label = '✅ Submit Job',
+            description = 'Save this job with its grades',
+            event = 'jobcreator:submitJob'
         }
+    }
+
+    lib.registerContext({
+        id = 'edit_pay_menu',
+        title = '💵 Edit Job Pay',
+        description = 'Customize job grades and pay',
+        options = options
     })
 
-    if dialog then
-        if not dialog.salary or tonumber(dialog.salary) <= 0 then
-            TriggerEvent('QBCore:Notify', "Salary must be greater than 0.", "error")
+    lib.showContext('edit_pay_menu')
+end
+
+-- Function to edit pay for grades
+RegisterNetEvent('jobcreator:editPay', function()
+    local input = lib.inputDialog('Set Grade Salaries', {
+        { type = 'number', label = 'Grade 1 Salary', default = 0, required = true },
+        { type = 'number', label = 'Grade 2 Salary', default = 0, required = true },
+        { type = 'number', label = 'Grade 3 Salary', default = 0, required = true },
+        { type = 'number', label = 'Grade 4 Salary', default = 0, required = true }
+    })
+
+    if not input then return end -- Cancelled
+
+    -- Save salaries to job data
+    for i = 1, 4 do
+        jobData.grades[i] = { salary = tonumber(input[i]) }
+    end
+
+    openEditPayMenu() -- Return to the edit pay menu
+end)
+
+-- Function to handle job submission
+RegisterNetEvent('jobcreator:submitJob', function()
+    -- Validate job data
+    for i = 1, 4 do
+        if not jobData.grades[i] then
+            lib.notify({
+                description = 'Salary for Grade ' .. i .. ' is missing!',
+                type = 'error'
+            })
             return
         end
-        TriggerServerEvent('jobcreator:setGradeSalary', {
-            id = jobId,
-            grade = grade,
-            salary = tonumber(dialog.salary)
+    end
+
+    -- Send job data to the server
+    TriggerServerEvent('jobcreator:createJob', jobData)
+
+    -- Reset job data and return to main menu
+    jobData = {}
+    lib.notify({ description = 'Job created successfully!', type = 'success' })
+    openMainMenu()
+end)
+
+-- Function to view all jobs
+RegisterNetEvent('jobcreator:viewJobs', function()
+    TriggerServerEvent('jobcreator:getAllJobs')
+end)
+
+-- Event to display all jobs
+RegisterNetEvent('jobcreator:showAllJobs', function(jobs)
+    local options = {}
+
+    for jobId, jobInfo in pairs(jobs) do
+        table.insert(options, {
+            label = jobInfo.label,
+            description = 'Job ID: ' .. jobId
         })
     end
-end
 
--- Command to open the Job Creator
-RegisterCommand('jobcreator', function(_, args)
-    if not jobMenu then
-        createJobMenu()
-    end
-    _menuPool:RefreshIndex()
-    jobMenu:Visible(true)
-end, false)
+    table.insert(options, {
+        label = '🔙 Back',
+        description = 'Return to the main menu',
+        event = 'jobcreator:backToMain'
+    })
 
-_menuPool = NativeUI.CreatePool()
-_menuPool:RefreshIndex()
+    lib.registerContext({
+        id = 'view_jobs_menu',
+        title = '📋 All Jobs',
+        description = 'List of all current jobs',
+        options = options
+    })
 
--- Tick to process NativeUI
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(0)
-        _menuPool:ProcessMenus()
-    end
+    lib.showContext('view_jobs_menu')
 end)
 
--- ██████╗ ██╗███╗   ██╗ ██████╗  ██████╗ ███████╗
--- ██╔══██╗██║████╗  ██║██╔════╝ ██╔═══██╗██╔════╝
--- ██║  ██║██║██╔██╗ ██║██║  ███╗██║   ██║███████╗
--- ██║  ██║██║██║╚██╗██║██║   ██║██║   ██║╚════██║
--- ██████╔╝██║██║ ╚████║╚██████╔╝╚██████╔╝███████║
--- ╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚══════╝
+-- Function to return to the main menu
+RegisterNetEvent('jobcreator:backToMain', function()
+    openMainMenu()
+end)
 
--- ██████╗ ███████╗██╗   ██╗███████╗██████╗ ███╗   ███╗███████╗███╗   ██╗████████╗
--- ██╔══██╗██╔════╝██║   ██║██╔════╝██╔══██╗████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
--- ██║  ██║█████╗  ██║   ██║█████╗  ██████╔╝██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
--- ██║  ██║██╔══╝  ╚██╗ ██╔╝██╔══╝  ██╔═══╝ ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
--- ██████╔╝███████╗ ╚████╔╝ ███████╗██║     ██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
--- ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝╚═╝     ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
--- https://discord.gg/gxcZgsghzn
+-- Command to open the main menu
+RegisterCommand('jobcreator', function()
+    openMainMenu()
+end)
