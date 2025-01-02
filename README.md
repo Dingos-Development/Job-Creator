@@ -67,8 +67,6 @@ Join our **Support Discord** for assistance:
 📞 **[Support Discord](https://discord.gg/gxcZgsghzn)**
 
 **Author**: Dingo's Development  
-✨ *Empowering Your FiveM Server!* ✨  
 
-Let me know if this works for your needs! 🚀
 
 
